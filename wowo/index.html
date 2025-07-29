@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>APA INI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    body {
+      font-family: 'Press Start 2P', cursive;
+      background-color: #2a0e0e;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    #gameCanvas {
+      border: 4px solid #dc2626;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+      background-color: #0f172a;
+    }
+
+    @keyframes boxGlow {
+      0%, 100% { box-shadow: 0 0 12px #dc2626; }
+      50% { box-shadow: 0 0 25px #ff4d4d; }
+    }
+
+    .birthday-box {
+      background-color: #000000;
+      border: 4px solid #dc2626;
+      border-radius: 8px;
+      animation: boxGlow 2s infinite;
+      box-shadow: 0 0 15px rgba(220, 38, 38, 0.5);
+    }
+
+    .pulse {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    .direction-btn {
+      background-color: #dc2626;
+      color: white;
+      font-size: 1.5rem;
+      width: 48px;
+      height: 48px;
+      border-radius: 0.5rem;
+      transition: background-color 0.2s, transform 0.2s;
+      box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+    }
+
+    .direction-btn:hover {
+      background-color: #b91c1c;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+  <!-- Password Screen -->
+  <div id="passwordScreen" class="fixed inset-0 flex flex-col items-center justify-center bg-black z-50">
+    <div class="bg-gray-900 p-8 rounded-lg shadow-xl border-4 border-red-600 text-center">
+      <h2 class="text-2xl text-red-400 mb-4">Password</h2>
+      <input type="password" id="passwordInput" class="p-2 text-black rounded w-64 text-center mb-4" placeholder="Password"/>
+      <button onclick="checkPassword()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded">Masuk</button>
+      <p id="wrongPass" class="text-red-500 mt-2 hidden">SALAHH!</p>
+    </div>
+  </div>
+
+  <!-- Game UI -->
+  <div id="gameContainer" class="hidden flex flex-col items-center gap-4">
+    <h1 class="text-3xl md:text-4xl text-red-400">ULAR ?</h1>
+
+    <div class="flex items-center justify-between w-full max-w-md gap-4">
+      <div class="text-xl">Skor: <span id="score" class="text-red-300">0 (Target 5)</span></div>
+      <button id="startBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Mulai</button>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <!-- On-screen Controls -->
+    <div class="flex flex-col items-center mt-4 space-y-2">
+      <button class="direction-btn" onclick="setDirection('up')">↑</button>
+      <div class="flex space-x-4">
+        <button class="direction-btn" onclick="setDirection('left')">←</button>
+        <button class="direction-btn" onclick="setDirection('down')">↓</button>
+        <button class="direction-btn" onclick="setDirection('right')">→</button>
+      </div>
+    </div>
+
+    <div class="text-sm text-gray-400 mt-2">Pake button atau WASD untuk movement</div>
+  </div>
+
+  <!-- Birthday Screen -->
+  <div id="birthdayScreen" class="hidden fixed inset-0 flex flex-col items-center justify-center z-50 p-4">
+    <div class="birthday-box w-full max-w-xl text-center relative p-6">
+      <h1 class="text-3xl md:text-5xl font-bold mb-4 text-red-700 pulse">HAPPY BIRTHDAY!</h1>
+      <p class="text-xl md:text-1xl mb-5 text-red-100">Andhika ILHAM Prayoga<br><span class="text-white font-bold">Jangan lupa join FeeT-PS</span></p>
+      <div class="flex justify-center mb-4">
+        <img src="aleds.png" alt="Birthday" id="photoFrame" class="w-48 h-48 rounded-xl shadow-md cursor-pointer transition hover:scale-105 duration-300" />
+      </div>
+      <a href="https://www.instagram.com/andhikailhamprayoga?igsh=MTJycTNxOG9pMjdxag==" target="_blank" rel="noopener noreferrer">
+        <button class="bg-black text-red-700 px-6 py-3 rounded-full text-lg font-bold hover:bg-red-100 transition transform hover:scale-105">
+          Follow dia cuy
+        </button>
+      </a>
+      <button id="playAgainBtn" class="mt-4 bg-white text-red-700 px-4 py-2 rounded hover:bg-red-100 font-bold">
+        Main lagi
+      </button>
+      <canvas id="confettiCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none z-[-1]"></canvas>
+    </div>
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
+      <img id="modalImg" class="max-w-[90%] max-h-[90%] rounded-xl shadow-lg" />
+    </div>
+    <audio id="birthdaySong" loop>
+      <source src="musik.mp3" type="audio/mpeg">
+    </audio>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    // Password Check
+    function checkPassword() {
+      const pw = document.getElementById("passwordInput").value;
+      const screen = document.getElementById("passwordScreen");
+      const game = document.getElementById("gameContainer");
+      const wrong = document.getElementById("wrongPass");
+      if (pw.toLowerCase() === "miku") {
+        screen.classList.add("hidden");
+        game.classList.remove("hidden");
+      } else {
+        wrong.classList.remove("hidden");
+      }
+    }
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const tileCount = 20;
+    const gridSize = canvas.width / tileCount;
+
+    const startBtn = document.getElementById('startBtn');
+    const scoreDisplay = document.getElementById('score');
+    const gameContainer = document.getElementById('gameContainer');
+    const birthdayScreen = document.getElementById('birthdayScreen');
+    const birthdaySong = document.getElementById('birthdaySong');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const photo = document.getElementById('photoFrame');
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+
+    let snake = [], xVelocity = 1, yVelocity = 0;
+    let appleX = 5, appleY = 5, score = 0, speed = 150;
+    let interval = null, gameRunning = false;
+
+    function initSnake() {
+      snake = [];
+      for (let i = 2; i >= 0; i--) snake.push({ x: i, y: 0 });
+    }
+
+    function drawSnake() {
+      snake.forEach((segment, i) => {
+        ctx.fillStyle = i === 0 ? '#dc2626' : `hsl(${(i * 25) % 360}, 90%, 60%)`;
+        ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 1, gridSize - 1);
+        if (i === 0) {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(segment.x * gridSize + 4, segment.y * gridSize + 4, 4, 4);
+          ctx.fillRect(segment.x * gridSize + 12, segment.y * gridSize + 4, 4, 4);
+        }
+      });
+    }
+
+    function drawApple() {
+      ctx.beginPath();
+      ctx.fillStyle = 'red';
+      ctx.arc(appleX * gridSize + gridSize / 2, appleY * gridSize + gridSize / 2, gridSize / 2.5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < tileCount; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * gridSize, 0);
+        ctx.lineTo(i * gridSize, canvas.height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, i * gridSize);
+        ctx.lineTo(canvas.width, i * gridSize);
+        ctx.stroke();
+      }
+    }
+
+    function placeApple() {
+      do {
+        appleX = Math.floor(Math.random() * tileCount);
+        appleY = Math.floor(Math.random() * tileCount);
+      } while (snake.some(s => s.x === appleX && s.y === appleY));
+    }
+
+    function moveSnake() {
+      const head = { x: snake[0].x + xVelocity, y: snake[0].y + yVelocity };
+      if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
+        return gameOver();
+      }
+      snake.unshift(head);
+      if (head.x === appleX && head.y === appleY) {
+        score++;
+        scoreDisplay.textContent = score;
+        placeApple();
+        if (score >= 5) return showBirthday();
+      } else {
+        snake.pop();
+      }
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawApple();
+      drawSnake();
+      moveSnake();
+    }
+
+    function startGame() {
+      initSnake();
+      placeApple();
+      score = 0;
+      scoreDisplay.textContent = score;
+      xVelocity = 1;
+      yVelocity = 0;
+      gameRunning = true;
+      clearInterval(interval);
+      interval = setInterval(gameLoop, speed);
+      startBtn.textContent = "Loser?...";
+    }
+
+    function gameOver() {
+      clearInterval(interval);
+      gameRunning = false;
+      startBtn.textContent = "Main lagi";
+    }
+
+    function setDirection(dir) {
+      if (!gameRunning) return;
+      if (dir === 'up' && yVelocity === 0) { xVelocity = 0; yVelocity = -1; }
+      if (dir === 'down' && yVelocity === 0) { xVelocity = 0; yVelocity = 1; }
+      if (dir === 'left' && xVelocity === 0) { xVelocity = -1; yVelocity = 0; }
+      if (dir === 'right' && xVelocity === 0) { xVelocity = 1; yVelocity = 0; }
+    }
+
+    document.addEventListener('keydown', e => {
+      const key = e.key.toLowerCase();
+      if (key === 'arrowup' || key === 'w') setDirection('up');
+      if (key === 'arrowdown' || key === 's') setDirection('down');
+      if (key === 'arrowleft' || key === 'a') setDirection('left');
+      if (key === 'arrowright' || key === 'd') setDirection('right');
+    });
+
+    function showBirthday() {
+      clearInterval(interval);
+      gameRunning = false;
+      gameContainer.classList.add('hidden');
+      birthdayScreen.classList.remove('hidden');
+      birthdaySong.play();
+      launchConfetti();
+    }
+
+    playAgainBtn.onclick = () => {
+      birthdaySong.pause();
+      birthdaySong.currentTime = 0;
+      birthdayScreen.classList.add('hidden');
+      gameContainer.classList.remove('hidden');
+      startGame();
+    };
+
+    photo.onclick = () => {
+      modal.classList.remove('hidden');
+      modalImg.src = photo.src;
+    };
+    modal.onclick = () => modal.classList.add('hidden');
+
+    startBtn.onclick = startGame;
+
+    // Confetti
+    function launchConfetti() {
+      const confetti = document.getElementById('confettiCanvas');
+      const ctx2 = confetti.getContext('2d');
+      confetti.width = confetti.offsetWidth;
+      confetti.height = confetti.offsetHeight;
+      const pieces = Array.from({ length: 100 }, () => ({
+        x: Math.random() * confetti.width,
+        y: Math.random() * confetti.height - confetti.height,
+        speed: 2 + Math.random() * 3,
+        radius: 2 + Math.random() * 4,
+        color: `hsl(${Math.random() * 360}, 100%, 70%)`
+      }));
+      function animate() {
+        ctx2.clearRect(0, 0, confetti.width, confetti.height);
+        for (let p of pieces) {
+          p.y += p.speed;
+          if (p.y > confetti.height) p.y = 0;
+          ctx2.beginPath();
+          ctx2.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx2.fillStyle = p.color;
+          ctx2.fill();
+        }
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+  </script>
+</body>
+</html>
